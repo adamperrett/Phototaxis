@@ -11,9 +11,9 @@ import spynnaker8.spynakker_plotting as splot
 import csv
 
 #run setup
-total_runtime = 10000
-time_slice = 5000
-pop_size = 10
+total_runtime = 20000
+time_slice = 1000
+pop_size = 25
 agent_neurons = 6
 neuron_pop_size = 1
 ex_in_ratio = 4#:1
@@ -22,7 +22,7 @@ visual_field = (2./6.)*np.pi
 max_poisson = 300
 mutation_rate = 0.01
 shift_ratio = 0.2
-number_of_children = 10
+number_of_children = 75
 #maybe gentically code this
 visual_weight = 4
 visual_delay = 1
@@ -546,12 +546,12 @@ for agent in range(pop_size):
     # spikes = list()
     # #total_spikes = list()
     # v = list()
-    with open('movement {}.csv'.format(port_offset), 'w') as file:
-        writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
-        writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
-                         agent_pop[agent][genetic_length - 1]])
-    pop_fitness[agent] = agent_fitness(agent, 200, np.pi/4, True)
+    # with open('movement {}.csv'.format(port_offset), 'w') as file:
+    #     writer = csv.writer(file, delimiter=',', lineterminator='\n')
+    #     writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
+    #     writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
+    #                      agent_pop[agent][genetic_length - 1]])
+    pop_fitness[agent] = agent_fitness(agent, 200, np.pi/4, False)
     total_fitness += pop_fitness[agent]
     print"\n\n Terminated agent - {} \n\n".format(agent)
     #total_v = list()
@@ -608,6 +608,9 @@ for agent in range(pop_size):
 with open('Fitness over time.csv', 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
     writer.writerow(pop_fitness)
+with open('Fitness improvement record.csv', 'w') as file:
+    writer = csv.writer(file, delimiter=',', lineterminator='\n')
+    writer.writerow(pop_fitness)
 #generate new pop based on fitness evaluations
 #sort fitness values
 order = bubble_sort_fitness(pop_fitness)
@@ -629,7 +632,12 @@ for count in range(number_of_children):
     dad = order[j-1]
     #generate child
     mate_agents(mum, dad)
-    child_fitness = agent_fitness(child, 200, np.pi/4, False)
+    with open('movement {}.csv'.format(port_offset), 'w') as file:
+        writer = csv.writer(file, delimiter=',', lineterminator='\n')
+        writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
+        writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
+                         agent_pop[agent][genetic_length - 1]])
+    child_fitness = agent_fitness(child, 200, np.pi/4, True)
     print "generated a child ",
     if child_fitness < pop_fitness[order[pop_size-1]]:
         print "which was then added to the population"
@@ -638,6 +646,9 @@ for count in range(number_of_children):
         order = bubble_sort_fitness(pop_fitness)
         worst_fitness = pop_fitness[order[pop_size-1]]
         total_fitness = 0
+        with open('Fitness improvement record.csv', 'a') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
+            writer.writerow([port_offset-1, order[pop_size-1], child_fitness])
         for i in range(pop_size):
             total_fitness += worst_fitness - pop_fitness[i]
     with open('Fitness over time.csv', 'a') as file:
