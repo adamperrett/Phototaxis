@@ -65,17 +65,11 @@ light_dist_range = 200
 light_angle = 0 #to 2*pi
 random_light_location = True
 
+print "can I commit"
+
 port_offset = 0
 child = pop_size
 neuron_labels = list()
-
-# if recurrency == 0:
-#     delays -= agent_neurons
-#     weights -= agent_neurons
-#     if plasticity_per_n != 0:
-#         plasticity_per_n -= agent_neurons
-#     if cell_params != 0:
-#         cell_params -= agent_neurons
 
 genetic_length = weights + delays + (inhibitory * agent_neurons) + \
                  plasticity + plasticity_per_n + net_size + cell_params + status
