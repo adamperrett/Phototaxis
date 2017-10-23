@@ -12,8 +12,8 @@ import csv
 
 #run setup
 total_runtime = 10000
-time_slice = 1000
-pop_size = 25
+time_slice = 5000
+pop_size = 10
 agent_neurons = 6
 neuron_pop_size = 1
 ex_in_ratio = 4#:1
@@ -21,7 +21,8 @@ visual_discrete = 2
 visual_field = (2./6.)*np.pi
 max_poisson = 300
 mutation_rate = 0.01
-number_of_children = 75
+shift_ratio = 0.2
+number_of_children = 10
 #maybe gentically code this
 visual_weight = 4
 visual_delay = 1
@@ -32,12 +33,14 @@ visual_delay = 1
 weights = agent_neurons * agent_neurons
 weight_min = 0
 weight_max = 5
+weight_range = weight_max - weight_min
 weight_cut = 1
 #delays per neruon connection - n*n
 delays = agent_neurons * agent_neurons
 delay_loc = weights
 delay_min = 1
 delay_max = 144
+delay_range = delay_max - delay_min
 #inhibitory
 inhibitory = 1
 #plasticity on off - 1
@@ -80,7 +83,7 @@ for i in range(pop_size):
     j = 0
     #initialise weights
     while j < weights:
-        if recurrency == 0 and i == j: #wrong 2nd and statement but doesn't matter right now
+        if recurrency == 0 and j%(agent_neurons+1):
             agent_pop[i][j] = 0;
         else:
             agent_pop[i][j] = np.random.uniform(weight_min, weight_max)
@@ -89,7 +92,7 @@ for i in range(pop_size):
         j += 1
     #initilaise delays
     while j < weights + delays:
-        if recurrency == 0 and i == (j - weights): #wrong 2nd and statement but doesn't matter right now
+        if recurrency == 0 and (j-1)%(agent_neurons+1):
             agent_pop[i][j] = 0;
         else:
             agent_pop[i][j] = np.random.uniform(delay_min, delay_max)
@@ -395,35 +398,40 @@ def bubble_sort_fitness(fitnesses):
 
 def mate_agents(mum, dad):
     for i in range(genetic_length-3):
-        if np.random.uniform(0, 1) < mutation_rate:
-            if i < weights:
-                if recurrency == 0 and i == child: #wrong 2nd and statement but doesn't matter right now
-                    agent_pop[child][i] = 0;
-                else:
-                    agent_pop[child][i] = np.random.uniform(weight_min, weight_max)
-                    if agent_pop[child][j] < weight_cut:
-                        agent_pop[child][j] = 0
-            elif i < weights + delays:
-                if recurrency == 0 and child == (i - weights): #wrong 2nd and statement but doesn't matter right now
-                    agent_pop[child][i] = 0;
-                else:
-                    agent_pop[child][i] = np.random.uniform(delay_min, delay_max)
-            elif inhibitory != 0 and i < inhibitory_loc + agent_neurons:
-                if np.random.uniform(0, 1) < (1 / float(ex_in_ratio + 1)):
-                    agent_pop[child][j] = -1
-                else:
-                    agent_pop[child][j] = 1
-            elif i < inhibitory_loc + agent_neurons + 1:
-                if np.random.uniform(0, 1) < plastic_prob:
-                    agent_pop[child][j] = 0
-                else:
-                    agent_pop[child][j] = 1
-            else:
-                print "shouldn't be here, location saved for further genetic manipulation"
-        elif np.random.uniform(0, 1) < 0.5:
+        if np.random.uniform(0, 1) < 0.5:
             agent_pop[child][i] = agent_pop[mum][i]
         else:
             agent_pop[child][i] = agent_pop[dad][i]
+        if np.random.uniform(0, 1) < mutation_rate:
+            if i < weights:
+                if recurrency == 0 and i%(agent_neurons+1) == 0:
+                    agent_pop[child][i] = 0;
+                else:
+                    agent_pop[child][i] = np.random.normal(agent_pop[child][i], weight_range*shift_ratio)
+                    if agent_pop[child][i] < weight_min:
+                        agent_pop[child][i] += weight_range
+                    if agent_pop[child][i] > weight_max:
+                        agent_pop[child][i] -= weight_range
+                    if agent_pop[child][i] < weight_cut:
+                        agent_pop[child][i] = 0
+            elif i < weights + delays:
+                if recurrency == 0 and (i-1)%(agent_neurons+1):
+                    agent_pop[child][i] = 0;
+                else:
+                    agent_pop[child][i] = np.random.normal(agent_pop[child][i], delay_range*shift_ratio)
+                if agent_pop[child][i] < delay_min:
+                    agent_pop[child][i] += delay_range
+                if agent_pop[child][i] > delay_max:
+                    agent_pop[child][i] -= delay_range
+            elif inhibitory != 0 and i < inhibitory_loc + agent_neurons:
+                agent_pop[child][i] *= -1
+            elif i < inhibitory_loc + agent_neurons + 1:
+                if np.random.uniform(0, 1) < plastic_prob:
+                    agent_pop[child][i] = 0
+                else:
+                    agent_pop[child][i] = 1
+            else:
+                print "shouldn't be here, location saved for further genetic manipulation"
     agent_pop[child][i] = np.random.uniform(x_centre - (x_range / 2), x_centre + (x_range / 2))
     i += 1
     agent_pop[child][i] = np.random.uniform(y_centre - (y_range / 2), y_centre + (y_range / 2))
@@ -599,7 +607,7 @@ for agent in range(pop_size):
     #     print "did a run"
 with open('Fitness over time.csv', 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
-    writer.writerow([pop_fitness])
+    writer.writerow(pop_fitness)
 #generate new pop based on fitness evaluations
 #sort fitness values
 order = bubble_sort_fitness(pop_fitness)
@@ -622,7 +630,9 @@ for count in range(number_of_children):
     #generate child
     mate_agents(mum, dad)
     child_fitness = agent_fitness(child, 200, np.pi/4, False)
+    print "generated a child ",
     if child_fitness < pop_fitness[order[pop_size-1]]:
+        print "which was then added to the population"
         agent_pop[order[pop_size-1]] = agent_pop[child]
         pop_fitness[order[pop_size-1]] = child_fitness
         order = bubble_sort_fitness(pop_fitness)
@@ -632,18 +642,21 @@ for count in range(number_of_children):
             total_fitness += worst_fitness - pop_fitness[i]
     with open('Fitness over time.csv', 'a') as file:
         writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        writer.writerow([pop_fitness])
+        writer.writerow(pop_fitness)
 
 with open('population_genes.csv', 'w') as file:
     writer = csv.writer(file)
     for i in range(pop_size):
-        writer.writerow([pop_fitness[order[i]],agent_pop[order[i]]])
+        writer.writerow(pop_fitness[order[i]])
+        writer.writerow(agent_pop[order[i]])
 
 with open('movement {}.csv'.format(port_offset), 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
     writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
     writer.writerow([agent_pop[order[0]][genetic_length - 3], agent_pop[order[0]][genetic_length - 2],
                      agent_pop[order[0]][genetic_length - 1]])
-best_fitness = agent_fitness(order[0], 200, np.pi/4, True)
 
-print "shit finished yo!!"
+best_fitness = agent_fitness(order[0], 200, np.pi/4, True)
+best_fitness2 = agent_fitness(order[0], 200, np.pi/4, True)
+
+print "\n shit finished yo!!"
