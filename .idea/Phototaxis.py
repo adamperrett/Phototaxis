@@ -647,8 +647,7 @@ for count in range(number_of_children):
 with open('population_genes.csv', 'w') as file:
     writer = csv.writer(file)
     for i in range(pop_size):
-        writer.writerow(pop_fitness[order[i]])
-        writer.writerow(agent_pop[order[i]])
+        writer.writerow([pop_fitness[order[i]],agent_pop[order[i]]])
 
 with open('movement {}.csv'.format(port_offset), 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
