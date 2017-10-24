@@ -199,17 +199,20 @@ def update_location(agent):
     print "before = ", agent_pop[agent][genetic_length-3], agent_pop[agent][genetic_length-2], agent_pop[agent][genetic_length-1]
     total_left = motor_spikes[0] - motor_spikes[1]
     total_right = motor_spikes[2] - motor_spikes[3]
-    print "left = ", total_left
-    print "right = ", total_right
+    motor_average = (total_right + total_left) / 2.
+    left_ratio = abs(total_left/(abs(total_left)+abs(total_right)))
+    right_ratio = abs(total_right/(abs(total_left)+abs(total_right)))
+    distance_moved = (left_ratio*total_right) + (right_ratio*total_left)
+    print "left = {} <- {} + {}".format(total_left, motor_spikes[0], motor_spikes[1])
+    print "right = {} <- {} + {}".format(total_right, motor_spikes[2], motor_spikes[3])
     #x - negative angle due to x y being opposite to trigonometry
-    print "dx = ", ((total_left + total_right) / 2.) * np.sin(-agent_pop[agent][genetic_length-1])
-    print (total_left + total_right) / 2.
+    print "dx = ", (distance_moved * np.sin(-agent_pop[agent][genetic_length-1]))
+    print "average = ", (total_left + total_right) / 2.
+    print "new distance calc = ", distance_moved
     print np.sin(-agent_pop[agent][genetic_length-1])
-    agent_pop[agent][genetic_length-3] += ((total_left + total_right) / 2.) * np.sin(-agent_pop[agent][genetic_length-1])
     #y
-    print "dy = ", ((total_left + total_right) / 2.) * np.cos(-agent_pop[agent][genetic_length-1])
+    print "dy = ", (distance_moved * np.cos(-agent_pop[agent][genetic_length-1]))
     print np.cos(-agent_pop[agent][genetic_length-1])
-    agent_pop[agent][genetic_length-2] += ((total_left + total_right) / 2.) * np.cos(-agent_pop[agent][genetic_length-1])
     #angle
     print "change = ", (total_right - total_left) * 0.01
     agent_pop[agent][genetic_length-1] += (total_right - total_left) * 0.01
@@ -217,6 +220,8 @@ def update_location(agent):
         agent_pop[agent][genetic_length - 1] -= np.pi * 2
     if agent_pop[agent][genetic_length-1] < -np.pi:
         agent_pop[agent][genetic_length - 1] += np.pi * 2
+    agent_pop[agent][genetic_length-3] += distance_moved * np.sin(-agent_pop[agent][genetic_length-1])
+    agent_pop[agent][genetic_length-2] += distance_moved * np.cos(-agent_pop[agent][genetic_length-1])
     print "after = ", agent_pop[agent][genetic_length-3], agent_pop[agent][genetic_length-2], agent_pop[agent][genetic_length-1]
     for i in range(4):
         motor_spikes[i] = 0
