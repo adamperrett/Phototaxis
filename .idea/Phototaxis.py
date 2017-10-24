@@ -259,7 +259,7 @@ def poisson_rate(agent, light_dist, light_angle):
             #possibly wrong for certain values
             min_angle = min(abs(relative_view-(bin_angle+agent_angle)), abs(relative_view-(bin_angle+bin_size+agent_angle)))
             sensor_reading[i] = 1 - (min_angle/np.pi)
-        if distance < distance_cap:
+        if distance > distance_cap:
             sensor_poisson[i] = sensor_reading[i] * (np.power(distance_cap,2)/np.power(distance,2)) * max_poisson
         else:
             sensor_poisson[i] = sensor_reading[i] * max_poisson
@@ -371,7 +371,7 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
         sensor_poisson = poisson_rate(agent, light_distance, light_theta)
         for j in range(visual_discrete):
             visual_input[j].set(rate=sensor_poisson[j])
-        print "did a run, time now at {}/{}".format(i, total_runtime)
+        print "did a run, time now at {}/{}".format(i+time_slice, total_runtime)
         if print_move == True:
             with open('movement {}.csv'.format(port_offset), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
