@@ -241,7 +241,7 @@ def poisson_rate(agent, light_dist, light_angle):
     light_y = light_dist * np.cos(light_angle)
     theta = my_tan(light_x-agent_x, light_y-agent_y)
     #calculate and cap distance
-    distance_cap = 100
+    distance_cap = 20
     distance = np.sqrt(np.power(agent_x-light_x,2)+np.power(agent_y-light_y,2))
     if distance < distance_cap:
         distance = distance_cap
@@ -259,7 +259,10 @@ def poisson_rate(agent, light_dist, light_angle):
             #possibly wrong for certain values
             min_angle = min(abs(relative_view-(bin_angle+agent_angle)), abs(relative_view-(bin_angle+bin_size+agent_angle)))
             sensor_reading[i] = 1 - (min_angle/np.pi)
-        sensor_poisson[i] = sensor_reading[i] * (np.power(distance_cap,2)/np.power(distance,2)) * max_poisson
+        if distance < distance_cap:
+            sensor_poisson[i] = sensor_reading[i] * (np.power(distance_cap,2)/np.power(distance,2)) * max_poisson
+        else:
+            sensor_poisson[i] = sensor_reading[i] * max_poisson
 
     return sensor_poisson
 
@@ -438,6 +441,10 @@ def mate_agents(mum, dad):
     i += 1
     agent_pop[child][i] = np.random.uniform(angle, angle_range)
     #return child
+
+def copy_child(location):
+    for i in range(genetic_length):
+        agent_pop[location][i] = agent_pop[child][i]
 
 #port definitions
 cell_params_spike_injector = {
@@ -641,7 +648,8 @@ for count in range(number_of_children):
     print "generated a child ",
     if child_fitness < pop_fitness[order[pop_size-1]]:
         print "which was then added to the population"
-        agent_pop[order[pop_size-1]] = agent_pop[child]
+        copy_child(order[pop_size-1])
+        #agent_pop[order[pop_size-1]] = agent_pop[child] ## check this works right
         pop_fitness[order[pop_size-1]] = child_fitness
         order = bubble_sort_fitness(pop_fitness)
         worst_fitness = pop_fitness[order[pop_size-1]]
