@@ -23,6 +23,7 @@ max_poisson = 300
 mutation_rate = 0.01
 shift_ratio = 0.2
 number_of_children = 75
+fitness_offset = 150
 #maybe gentically code this
 visual_weight = 4
 visual_delay = 1
@@ -197,11 +198,15 @@ def receive_spikes(label, time, neuron_ids):
 
 def update_location(agent):
     print "before = ", agent_pop[agent][genetic_length-3], agent_pop[agent][genetic_length-2], agent_pop[agent][genetic_length-1]
-    total_left = motor_spikes[0] - motor_spikes[1]
-    total_right = motor_spikes[2] - motor_spikes[3]
+    total_left = motor_spikes[0] #- motor_spikes[1]
+    total_right = motor_spikes[2] #- motor_spikes[3]
     motor_average = (total_right + total_left) / 2.
-    left_ratio = abs(total_left/(abs(total_left)+abs(total_right)))
-    right_ratio = abs(total_right/(abs(total_left)+abs(total_right)))
+    if total_left != 0 or total_right != 0:
+        left_ratio = np.abs(float(total_left)/(np.abs(float(total_left))+np.abs(float(total_right))))
+        right_ratio = np.abs(float(total_right)/(np.abs(float(total_left))+np.abs(float(total_right))))
+    else:
+        left_ratio = 0
+        right_ratio = 0
     distance_moved = (left_ratio*total_right) + (right_ratio*total_left)
     print "left = {} <- {} + {}".format(total_left, motor_spikes[0], motor_spikes[1])
     print "right = {} <- {} + {}".format(total_right, motor_spikes[2], motor_spikes[3])
@@ -376,7 +381,7 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
         sensor_poisson = poisson_rate(agent, light_distance, light_theta)
         for j in range(visual_discrete):
             visual_input[j].set(rate=sensor_poisson[j])
-        print "did a run, time now at {}/{}".format(i+time_slice, total_runtime)
+        print "did a run, time now at {}/{} and fitness = {}".format(i+time_slice, total_runtime, fitness)
         if print_move == True:
             with open('movement {}.csv'.format(port_offset), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
@@ -627,21 +632,27 @@ with open('Fitness improvement record.csv', 'w') as file:
 #sort fitness values
 order = bubble_sort_fitness(pop_fitness)
 worst_fitness = pop_fitness[order[pop_size-1]]
-total_fitness = (worst_fitness*pop_size) - total_fitness
+total_fitness = fitness_offset + (worst_fitness*pop_size) - total_fitness
 for count in range(number_of_children):
     i = np.random.uniform(0,total_fitness)
     j = 0
     #generate parents to mate
+    print "i = ",i,
     while i > 0:
-        i -= worst_fitness - pop_fitness[order[j]]
+        i -= fitness_offset + worst_fitness - pop_fitness[order[j]]
         j += 1
     mum = order[j-1]
+    print "mum = {} from a j of {}".format(mum, j)
+    # dad = mum possibly useful to stop self replication polluting the gene pool
+    # while dad == mum:
     i = np.random.uniform(0,total_fitness)
     j = 0
+    print "i = ",i,
     while i > 0:
-        i -= worst_fitness - pop_fitness[order[j]]
+        i -= fitness_offset + worst_fitness - pop_fitness[order[j]]
         j += 1
     dad = order[j-1]
+    print "dad = {} from a j of {}".format(dad, j)
     #generate child
     mate_agents(mum, dad)
     with open('movement {}.csv'.format(port_offset), 'w') as file:
@@ -656,14 +667,15 @@ for count in range(number_of_children):
         copy_child(order[pop_size-1])
         #agent_pop[order[pop_size-1]] = agent_pop[child] ## check this works right
         pop_fitness[order[pop_size-1]] = child_fitness
+        worst_positon = order[pop_size-1]
         order = bubble_sort_fitness(pop_fitness)
         worst_fitness = pop_fitness[order[pop_size-1]]
         total_fitness = 0
         with open('Fitness improvement record.csv', 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
-            writer.writerow([port_offset-1, order[pop_size-1], child_fitness])
+            writer.writerow([port_offset-1, worst_positon, child_fitness])
         for i in range(pop_size):
-            total_fitness += worst_fitness - pop_fitness[i]
+            total_fitness += fitness_offset + worst_fitness - pop_fitness[i]
     with open('Fitness over time.csv', 'a') as file:
         writer = csv.writer(file, delimiter=',', lineterminator='\n')
         writer.writerow(pop_fitness)
