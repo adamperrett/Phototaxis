@@ -13,7 +13,7 @@ import csv
 #run setup
 total_runtime = 20000
 time_slice = 1000
-pop_size = 25
+pop_size = 15
 agent_neurons = 6
 neuron_pop_size = 1
 ex_in_ratio = 4#:1
@@ -35,15 +35,19 @@ weights = agent_neurons * agent_neurons
 weight_min = 0
 weight_max = 5
 weight_range = weight_max - weight_min
-weight_cut = 1
+weight_cut = 0
 #delays per neruon connection - n*n
 delays = agent_neurons * agent_neurons
 delay_loc = weights
 delay_min = 1
 delay_max = 144
 delay_range = delay_max - delay_min
-#inhibitory
+#inhibitory on off
 inhibitory = 1
+#weights set-able to 0
+set2zero = agent_neurons * agent_neurons
+connects_p_neuron = 4.0
+set2chance = connects_p_neuron/agent_neurons
 #plasticity on off - 1
 plasticity = 1
 plastic_prob = 1
@@ -75,7 +79,7 @@ port_offset = 0
 child = pop_size
 neuron_labels = list()
 
-genetic_length = weights + delays + (inhibitory * agent_neurons) + \
+genetic_length = weights + delays + (inhibitory * agent_neurons) + set2zero + \
                  plasticity + plasticity_per_n + net_size + cell_params + status
 
 #intialise population
@@ -107,6 +111,16 @@ for i in range(pop_size):
             else:
                 agent_pop[i][j] = 1
             j += 1
+        set2loc = inhibitory_loc + agent_neurons
+    else:
+        set2loc = weights + delays
+    #enable connection between neurons or not
+    while j < set2loc + set2zero:
+        if np.random.uniform(0,1) < set2chance:
+            agent_pop[i][j] = 1
+        else:
+            agent_pop[i][j] = 0
+        j += 1
     #plasticity on off
     if np.random.uniform(0, 1) < plastic_prob:
         agent_pop[i][j] = 0
@@ -251,7 +265,7 @@ def poisson_rate(agent, light_dist, light_angle):
     light_y = light_dist * np.cos(light_angle)
     theta = my_tan(light_x-agent_x, light_y-agent_y)
     #calculate and cap distance
-    distance_cap = 20
+    distance_cap = 200
     distance = np.sqrt(np.power(agent_x-light_x,2)+np.power(agent_y-light_y,2))
     if distance < distance_cap:
         distance = distance_cap
@@ -321,7 +335,7 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     for i in range(agent_neurons):
         for j in range(agent_neurons):
             # if theres a connection connect
-            if agent_pop[agent][(i * agent_neurons) + j] != 0:
+            if agent_pop[agent][set2loc + (i * agent_neurons) + j] != 0:
                 # if connection is inhibitory set as such
                 if agent_pop[agent][inhibitory_loc + i] == -1:
                     synapse = p.StaticSynapse(
@@ -438,7 +452,12 @@ def mate_agents(mum, dad):
                     agent_pop[child][i] -= delay_range
             elif inhibitory != 0 and i < inhibitory_loc + agent_neurons:
                 agent_pop[child][i] *= -1
-            elif i < inhibitory_loc + agent_neurons + 1:
+            elif i < set2loc + set2zero:
+                if agent_pop[child][i] == 1:
+                    agent_pop[child][i] = 0
+                else:
+                    agent_pop[child][i] = 1
+            elif i < set2loc + set2zero + 1:
                 if np.random.uniform(0, 1) < plastic_prob:
                     agent_pop[child][i] = 0
                 else:
