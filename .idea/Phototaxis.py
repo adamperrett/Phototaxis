@@ -234,13 +234,15 @@ def update_location(agent):
     print np.cos(-agent_pop[agent][genetic_length-1])
     #angle
     print "change = ", (total_right - total_left) * 0.01
+    angle_before = agent_pop[agent][genetic_length-1]
     agent_pop[agent][genetic_length-1] += (total_right - total_left) * 0.01
     if agent_pop[agent][genetic_length-1] > np.pi:
         agent_pop[agent][genetic_length - 1] -= np.pi * 2
     if agent_pop[agent][genetic_length-1] < -np.pi:
         agent_pop[agent][genetic_length - 1] += np.pi * 2
-    agent_pop[agent][genetic_length-3] += distance_moved * np.sin(-agent_pop[agent][genetic_length-1])
-    agent_pop[agent][genetic_length-2] += distance_moved * np.cos(-agent_pop[agent][genetic_length-1])
+    #possbily change to move between half the angle of start and finish
+    agent_pop[agent][genetic_length-3] += distance_moved * np.sin(-(angle_before+agent_pop[agent][genetic_length-1])/2)
+    agent_pop[agent][genetic_length-2] += distance_moved * np.cos(-(angle_before+agent_pop[agent][genetic_length-1])/2)
     print "after = ", agent_pop[agent][genetic_length-3], agent_pop[agent][genetic_length-2], agent_pop[agent][genetic_length-1]
     for i in range(4):
         motor_spikes[i] = 0
@@ -261,8 +263,8 @@ def poisson_rate(agent, light_dist, light_angle):
     agent_y = agent_pop[agent][genetic_length-2]
     agent_angle = agent_pop[agent][genetic_length-1]
     #theta between pi and -pi relative to north anticlockwise positive
-    light_x = light_dist * np.sin(light_angle)
-    light_y = light_dist * np.cos(light_angle)
+    light_x = light_dist * np.sin(-light_angle)
+    light_y = light_dist * np.cos(-light_angle)
     theta = my_tan(light_x-agent_x, light_y-agent_y)
     #calculate and cap distance
     distance_cap = 200
@@ -280,8 +282,20 @@ def poisson_rate(agent, light_dist, light_angle):
         if relative_view > bin_angle and relative_view < (bin_angle+bin_size):
             sensor_reading[i] = 1
         else:
-            #possibly wrong for certain values
-            min_angle = min(abs(relative_view-(bin_angle+agent_angle)), abs(relative_view-(bin_angle+bin_size+agent_angle)))
+            #possibly wrong for certain values - maybe not anymore
+            right_angle = relative_view-(bin_angle+agent_angle)
+            left_angle = relative_view-(bin_angle+bin_size+agent_angle)
+            if right_angle > np.pi:
+                right_angle -= 2*np.pi
+            if right_angle < -np.pi:
+                right_angle += 2*np.pi
+            if left_angle > np.pi:
+                left_angle -= 2*np.pi
+            if left_angle < -np.pi:
+                left_angle += 2*np.pi
+            min_angle = min(abs(left_angle), abs(right_angle))
+            if left_angle < 0 and right_angle > 0:
+                min_angle = 0
             sensor_reading[i] = 1 - (min_angle/np.pi)
         if distance > distance_cap:
             sensor_poisson[i] = sensor_reading[i] * (np.power(distance_cap,2)/np.power(distance,2)) * max_poisson
@@ -293,8 +307,8 @@ def poisson_rate(agent, light_dist, light_angle):
 def calc_instant_fitness(agent, light_dist, light_angle):
     agent_x = agent_pop[agent][genetic_length-3]
     agent_y = agent_pop[agent][genetic_length-2]
-    light_x = light_dist * np.sin(light_angle)
-    light_y = light_dist * np.cos(light_angle)
+    light_x = light_dist * np.sin(-light_angle)
+    light_y = light_dist * np.cos(-light_angle)
     fitness = np.sqrt(np.power(agent_x-light_x,2)+np.power(agent_y-light_y,2))
     return fitness
 
@@ -676,7 +690,7 @@ for count in range(number_of_children):
     mate_agents(mum, dad)
     with open('movement {}.csv'.format(port_offset), 'w') as file:
         writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
+        writer.writerow([200*np.sin(-np.pi / 4), 200*np.cos(-np.pi / 4)])
         writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
                          agent_pop[agent][genetic_length - 1]])
     child_fitness = agent_fitness(child, 200, np.pi/4, True)
@@ -706,7 +720,7 @@ with open('population_genes.csv', 'w') as file:
 
 with open('movement {}.csv'.format(port_offset), 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
-    writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
+    writer.writerow([200*np.sin(-np.pi / 4), 200*np.cos(-np.pi / 4)])
     writer.writerow([agent_pop[order[0]][genetic_length - 3], agent_pop[order[0]][genetic_length - 2],
                      agent_pop[order[0]][genetic_length - 1]])
 
