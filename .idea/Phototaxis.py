@@ -11,8 +11,8 @@ import spynnaker8.spynakker_plotting as splot
 import csv
 
 #run setup
-total_runtime = 20000
-time_slice = 1000
+total_runtime = 2000
+time_slice = 100
 pop_size = 15
 agent_neurons = 6
 neuron_pop_size = 1
@@ -273,6 +273,10 @@ def poisson_rate(agent, light_dist, light_angle):
         distance = distance_cap
     #generate angle differnce between agent view and light location
     relative_view = theta - agent_angle
+    if relative_view > np.pi:
+        relative_view -= 2*np.pi
+    if relative_view < -np.pi:
+        relative_view += 2*np.pi
     #view bins
     bin_size = visual_field/visual_discrete
     sensor_reading = [0 for j in range(visual_discrete)]
@@ -283,8 +287,8 @@ def poisson_rate(agent, light_dist, light_angle):
             sensor_reading[i] = 1
         else:
             #possibly wrong for certain values - maybe not anymore
-            right_angle = relative_view-(bin_angle+agent_angle)
-            left_angle = relative_view-(bin_angle+bin_size+agent_angle)
+            right_angle = relative_view-(bin_angle+bin_size)
+            left_angle = relative_view-bin_angle
             if right_angle > np.pi:
                 right_angle -= 2*np.pi
             if right_angle < -np.pi:
@@ -294,8 +298,6 @@ def poisson_rate(agent, light_dist, light_angle):
             if left_angle < -np.pi:
                 left_angle += 2*np.pi
             min_angle = min(abs(left_angle), abs(right_angle))
-            if left_angle < 0 and right_angle > 0:
-                min_angle = 0
             sensor_reading[i] = 1 - (min_angle/np.pi)
         if distance > distance_cap:
             sensor_poisson[i] = sensor_reading[i] * (np.power(distance_cap,2)/np.power(distance,2)) * max_poisson
