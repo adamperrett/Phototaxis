@@ -12,7 +12,7 @@ import csv
 import pandas
 
 #run setup
-seed_population = True
+seed_population = False
 copy_population = False
 total_runtime = 2000
 time_slice = 100
@@ -23,7 +23,7 @@ ex_in_ratio = 4#:1
 visual_discrete = 2
 visual_field = (2./6.)*np.pi
 max_poisson = 300
-mutation_rate = 0.01
+mutation_rate = 0.02
 shift_ratio = 0.2
 number_of_children = 75
 fitness_offset = 150
@@ -78,7 +78,9 @@ random_light_location = True
 
 print "can I commit"
 
-port_offset = 0
+port_offset = 1
+number_of_runs = 2
+counter = 1
 child = pop_size
 neuron_labels = list()
 
@@ -138,8 +140,9 @@ if seed_population == True:
                             agent_pop[i+1][j] += delay_range
                         if agent_pop[i+1][j] > delay_max:
                             agent_pop[i+1][j] -= delay_range
-                    elif np.random.normal(0,1) < (1 / float(ex_in_ratio + 1)) and j < inhibitory_loc + agent_neurons:
-                        agent_pop[i+1][j] *= -1
+                    elif j < inhibitory_loc + agent_neurons:
+                        if np.random.normal(0, 1) < (1 / float(ex_in_ratio + 1)):
+                            agent_pop[i+1][j] *= -1
                     elif j < set2loc + set2zero:
                         if np.random.uniform(0, 1) > set2chance: #only works well if set2chance > 0.5
                             if agent_pop[i+1][j] == 1:
@@ -393,6 +396,8 @@ def reset_agent(agent):
 
 def agent_fitness(agent, light_distance, light_theta, print_move):
     global port_offset
+    global number_of_runs
+    global counter
     print "\n\nStarting agent - {}\n\n".format(agent)
     p.setup(timestep=1.0, min_delay=delay_min, max_delay=delay_max)
     p.set_number_of_neurons_per_core(p.IF_curr_exp, 20)
@@ -483,9 +488,9 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
         sensor_poisson = poisson_rate(agent, light_distance, light_theta)
         for j in range(visual_discrete):
             visual_input[j].set(rate=sensor_poisson[j])
-        print "did a run, time now at {}/{} and fitness = {}".format(i+time_slice, total_runtime, fitness)
+        print "did a run {}/{}, time now at {}/{} and fitness = {}".format(counter, number_of_runs, i+time_slice, total_runtime, fitness)
         if print_move == True:
-            with open('movement {}.csv'.format(port_offset), 'a') as file:
+            with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
                 writer.writerow([agent_pop[agent][genetic_length-3],agent_pop[agent][genetic_length-2],agent_pop[agent][genetic_length-1]])
     # if print_move == True:
@@ -497,6 +502,19 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     live_connection.close()
     live_connection._handle_possible_rerun_state()
     p.end()
+    if counter != number_of_runs:
+        counter += 1
+        port_offset += 1
+        reset_agent(agent)
+        if print_move == True:
+            with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'a') as file:
+                writer = csv.writer(file, delimiter=',', lineterminator='\n')
+                writer.writerow([light_distance*np.sin(light_theta), light_distance*np.cos(light_theta)])
+        port_recurse_check = port_offset
+        fitness += agent_fitness(agent, light_distance, -light_theta, print_move)
+    else:
+        counter = 1
+        port_offset -= 1
     port_offset += 1
     reset_agent(agent)
     return fitness
@@ -579,104 +597,11 @@ else:
     total_fitness = 0
     #calculate fitnesses for all agents in population
     for agent in range(pop_size):
-        # # #initialise connections to be made
-        # # neuron_connections = list()
-        # # for i in range(weights):
-        # #     for j in range(weights):
-        # #         if agent_pop[i][j] != 0:
-        # #             singleConnection = ((i, j, agent_pop[i][j], agent_pop[i][j+weights]))
-        # #             neuron_connections.append(singleConnection)
-        #
-        # #setup of different neuronal populations
-        # neuron_labels = list()
-        # neuron_pop = list();#[p.Population(neuron_pop_size, p.IF_curr_exp(), label="Excitatory") for i in range(agent_neurons)]
-        # #j = 0
-        # #k = 0
-        # for i in range(agent_neurons):
-        #     if agent_pop[agent][inhibitory_loc + i] == -1:
-        #         neuron_labels.append("Inhibitory{}".format(i))
-        #         neuron_pop.append(
-        #             p.Population(neuron_pop_size, p.IF_curr_exp(), label=neuron_labels[i]))
-        #         #j += 1
-        #     else:
-        #         neuron_labels.append("Excitatory{}".format(i))
-        #         neuron_pop.append(
-        #             p.Population(neuron_pop_size, p.IF_curr_exp(), label=neuron_labels[i]))
-        #         #k += 1
-        #     neuron_pop[i].record(["spikes", "v"])
-        #
-        # #connect neuronal population according to genentic instructions
-        # projection_list = list()
-        # for i in range(agent_neurons):
-        #     for j in range(agent_neurons):
-        #         #if theres a connection connect
-        #         if agent_pop[agent][(i*agent_neurons) + j] != 0:
-        #             #if connection is inhibitory set as such
-        #             if agent_pop[agent][inhibitory_loc + i] == -1:
-        #                 synapse = p.StaticSynapse(
-        #                     weight=-agent_pop[agent][(i * agent_neurons) + j],
-        #                     delay=agent_pop[agent][delay_loc + ((i * agent_neurons) + j)])
-        #                 projection_list.append(p.Projection(
-        #                     neuron_pop[i], neuron_pop[j], p.AllToAllConnector(),
-        #                     synapse, receptor_type="inhibitory"))
-        #             #set as excitatory
-        #             else:
-        #                 synapse = p.StaticSynapse(
-        #                     weight=agent_pop[agent][(i * agent_neurons) + j],
-        #                     delay=agent_pop[agent][delay_loc + ((i * agent_neurons) + j)])
-        #                 projection_list.append(p.Projection(
-        #                     neuron_pop[i], neuron_pop[j], p.AllToAllConnector(),
-        #                     synapse, receptor_type="excitatory"))
-        #             #set STDP, weight goes to negative if inhibitory?
-        #             # stdp_model = p.STDPMechanism(
-        #             #     timing_dependence=p.SpikePairRule(
-        #             #         tau_plus=20., tau_minus=20.0, A_plus=0.5, A_minus=0.5),
-        #             #         weight_dependence=p.AdditiveWeightDependence(w_min=weight_min, w_max=weight_max))
-        #
-        # #connect in and out live links
-        # visual_input = list()
-        # visual_projection = list()
-        # input_labels = list()
-        # #live_list = list() #append live_connection to list?
-        # sensor_poisson = [0 for j in range(visual_discrete)]
-        # #setting up and connecting live inputs
-        # #possbily need to define multiple ports
-        # sensor_poisson = poisson_rate(agent, 200, np.pi/4)
-        # for i in range(visual_discrete):
-        #     print i
-        #     input_labels.append("input_spikes{}".format(i))
-        #     visual_input.append(p.Population(
-        #         1, p.SpikeSourcePoisson(rate=sensor_poisson[i]), label=input_labels[i]))
-        #     visual_projection.append(p.Projection(
-        #         visual_input[i], neuron_pop[i], p.OneToOneConnector(), p.StaticSynapse(
-        #             weight=visual_weight, delay=visual_delay)))
-        #     # p.external_devices.activate_live_output_for(
-        #     #     visual_input[i], database_notify_host="localhost", database_notify_port_num=(19993+i))
-        #     # live_connection = p.external_devices.SpynnakerLiveSpikesConnection(
-        #     #     send_labels=[input_labels[i]], local_port=(19993+i))
-        #     #live_connection.add_start_callback(input_labels[i], send_spike)
-        # #setting up live outputs
-        # motor_labels = list()
-        # for i in range(4):
-        #     print i
-        #     motor_labels.append(neuron_labels[agent_neurons-(i+1)])
-        #
-        #     p.external_devices.activate_live_output_for(
-        #         neuron_pop[agent_neurons-(i+1)])#, database_notify_host="localhost", database_notify_port_num=(19993+visual_discrete+i))
-        #
-        # live_connection = p.external_devices.SpynnakerLiveSpikesConnection(
-        #     receive_labels=[motor_labels[0], motor_labels[1], motor_labels[2], motor_labels[3]])#, local_port=(19993+visual_discrete+i))
-        # for i in range(4):
-        #     live_connection.add_receive_callback(motor_labels[i], receive_spikes)
-        # #test/run the network, save fitness in array
-        # spikes = list()
-        # #total_spikes = list()
-        # v = list()
-        # with open('movement {}.csv'.format(port_offset), 'w') as file:
-        #     writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        #     writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
-        #     writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
-        #                      agent_pop[agent][genetic_length - 1]])
+    #     with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
+    #         writer = csv.writer(file, delimiter=',', lineterminator='\n')
+    #         writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
+    #         writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
+    #                          agent_pop[agent][genetic_length - 1]])
         pop_fitness[agent] = agent_fitness(agent, 200, -np.pi/4, False)
         total_fitness += pop_fitness[agent]
         print"\n\n Terminated agent - {} \n\n".format(agent)
@@ -764,9 +689,9 @@ for count in range(number_of_children):
     print "dad = {} from a j of {}".format(dad, j)
     #generate child
     mate_agents(mum, dad)
-    with open('movement {}.csv'.format(port_offset), 'w') as file:
+    with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
         writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        writer.writerow([200*np.sin(-np.pi / 4), 200*np.cos(-np.pi / 4)])
+        writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
         writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
                          agent_pop[agent][genetic_length - 1]])
     child_fitness = agent_fitness(child, 200, -np.pi/4, True)
@@ -782,7 +707,7 @@ for count in range(number_of_children):
         total_fitness = 0
         with open('Fitness improvement record.csv', 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
-            writer.writerow([port_offset-1, worst_positon, child_fitness])
+            writer.writerow([(port_offset-1)/number_of_runs, worst_positon, child_fitness])
         for i in range(pop_size):
             total_fitness += fitness_offset + worst_fitness - pop_fitness[i]
     with open('Fitness over time.csv', 'a') as file:
@@ -794,7 +719,7 @@ with open('population_genes.csv', 'w') as file:
     for i in range(pop_size):
         writer.writerow([pop_fitness[order[i]],agent_pop[order[i]]])
 
-with open('movement {}.csv'.format(port_offset), 'w') as file:
+with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
     writer.writerow([200*np.sin(-np.pi / 4), 200*np.cos(-np.pi / 4)])
     writer.writerow([agent_pop[order[0]][genetic_length - 3], agent_pop[order[0]][genetic_length - 2],
