@@ -14,6 +14,7 @@ import pandas
 #run setup
 seed_population = False
 copy_population = False
+only_improve = False
 total_runtime = 2000
 time_slice = 100
 pop_size = 15
@@ -89,6 +90,7 @@ genetic_length = weights + delays + (inhibitory * agent_neurons) + set2zero + \
 
 #intialise population
 agent_pop = [[0 for i in range(genetic_length)] for j in range(pop_size+1)] #[pop][gen]
+temp_pop = [[0 for i in range(genetic_length)] for j in range(pop_size + 1)]
 if seed_population == True:
     if inhibitory != 0:
         inhibitory_loc = weights + delays
@@ -577,14 +579,28 @@ def mate_agents(mum, dad):
     agent_pop[child][i] = np.random.uniform(angle, angle_range)
     #return child
 
-def copy_child(location):
-    for i in range(genetic_length):
-        agent_pop[location][i] = agent_pop[child][i]
+def copy_child(location, temp):
+    if temp == False:
+        for i in range(genetic_length):
+            agent_pop[location][i] = agent_pop[child][i]
+    else:
+        for i in range(genetic_length):
+            temp_pop[location][i] = agent_pop[child][i]
+
+def start_new_gen(temp, pop):
+    for i in range(pop_size):
+        pop[i] = temp[i]
+        temp[i] = 0
+        for j in range(genetic_length):
+            agent_pop[i][j] = temp_pop[i][j]
+            temp_pop[i][j] = 0
 
 #port definitions
 cell_params_spike_injector = {
     'port': 19996,
 }
+
+temp_fitness = [0 for i in range(pop_size)]
 
 cell_params_spike_injector_with_key = {
     'port': 12346,
@@ -659,9 +675,14 @@ else:
 with open('Fitness over time.csv', 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
     writer.writerow(pop_fitness)
-with open('Fitness improvement record.csv', 'w') as file:
-    writer = csv.writer(file, delimiter=',', lineterminator='\n')
-    writer.writerow(pop_fitness)
+if only_improve == True:
+    with open('Fitness improvement record.csv', 'w') as file:
+        writer = csv.writer(file, delimiter=',', lineterminator='\n')
+        writer.writerow(pop_fitness)
+else:
+    with open('Child fitness record.csv', 'w') as file:
+        writer = csv.writer(file, delimiter=',', lineterminator='\n')
+        writer.writerow(pop_fitness)
 #generate new pop based on fitness evaluations
 #sort fitness values
 order = bubble_sort_fitness(pop_fitness)
@@ -696,23 +717,40 @@ for count in range(number_of_children):
                          agent_pop[agent][genetic_length - 1]])
     child_fitness = agent_fitness(child, 200, -np.pi/4, True)
     print "generated a child ",
-    if child_fitness < pop_fitness[order[pop_size-1]]:
-        print "which was then added to the population"
-        copy_child(order[pop_size-1])
-        #agent_pop[order[pop_size-1]] = agent_pop[child] ## check this works right
-        pop_fitness[order[pop_size-1]] = child_fitness
-        worst_positon = order[pop_size-1]
-        order = bubble_sort_fitness(pop_fitness)
-        worst_fitness = pop_fitness[order[pop_size-1]]
-        total_fitness = 0
-        with open('Fitness improvement record.csv', 'a') as file:
+    if only_improve == True:
+        if child_fitness < pop_fitness[order[pop_size-1]]:
+            print "which was then added to the population"
+            copy_child(order[pop_size-1], False)
+            #agent_pop[order[pop_size-1]] = agent_pop[child] ## check this works right
+            pop_fitness[order[pop_size-1]] = child_fitness
+            worst_positon = order[pop_size-1]
+            order = bubble_sort_fitness(pop_fitness)
+            worst_fitness = pop_fitness[order[pop_size-1]]
+            total_fitness = 0
+            for i in range(pop_size):
+                total_fitness += fitness_offset + worst_fitness - pop_fitness[i]
+            with open('Fitness improvement record.csv', 'a') as file:
+                writer = csv.writer(file, delimiter=',', lineterminator='\n')
+                writer.writerow([(port_offset-1)/number_of_runs, worst_positon, child_fitness])
+        with open('Fitness over time.csv', 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
-            writer.writerow([(port_offset-1)/number_of_runs, worst_positon, child_fitness])
-        for i in range(pop_size):
-            total_fitness += fitness_offset + worst_fitness - pop_fitness[i]
-    with open('Fitness over time.csv', 'a') as file:
-        writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        writer.writerow(pop_fitness)
+            writer.writerow(pop_fitness)
+    else:
+        temp_fitness[count%pop_size] = child_fitness
+        copy_child(count%pop_size, True)
+        with open('Child fitness record.csv', 'a') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
+            writer.writerow([count%pop_size, child_fitness])
+        if count%pop_size == pop_size-1:
+            start_new_gen(temp_fitness, pop_fitness)
+            order = bubble_sort_fitness(pop_fitness)
+            worst_fitness = pop_fitness[order[pop_size-1]]
+            total_fitness = 0
+            with open('Fitness over time.csv', 'a') as file:
+                writer = csv.writer(file, delimiter=',', lineterminator='\n')
+                writer.writerow(pop_fitness)
+            for i in range(pop_size):
+                total_fitness += fitness_offset + worst_fitness - pop_fitness[i]
 
 with open('population_genes.csv', 'w') as file:
     writer = csv.writer(file)
