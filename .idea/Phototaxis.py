@@ -17,7 +17,8 @@ copy_population = False
 only_improve = False
 total_runtime = 2000
 time_slice = 100
-pop_size = 15
+pop_size = 20
+copy_count = 10
 agent_neurons = 6
 neuron_pop_size = 1
 ex_in_ratio = 4#:1
@@ -26,7 +27,7 @@ visual_field = (2./6.)*np.pi
 max_poisson = 300
 mutation_rate = 0.02
 shift_ratio = 0.2
-number_of_children = 75
+number_of_children = 200
 fitness_offset = 150
 #maybe gentically code this
 visual_weight = 4
@@ -91,6 +92,7 @@ genetic_length = weights + delays + (inhibitory * agent_neurons) + set2zero + \
 #intialise population
 agent_pop = [[0 for i in range(genetic_length)] for j in range(pop_size+1)] #[pop][gen]
 temp_pop = [[0 for i in range(genetic_length)] for j in range(pop_size + 1)]
+order = [i for i in range(pop_size)]
 if seed_population == True:
     if inhibitory != 0:
         inhibitory_loc = weights + delays
@@ -522,6 +524,7 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     return fitness
 
 def bubble_sort_fitness(fitnesses):
+    global order
     order = [i for i in range(pop_size)]
     for i in range(pop_size):
         for j in range(pop_size-i-1):
@@ -588,12 +591,21 @@ def copy_child(location, temp):
             temp_pop[location][i] = agent_pop[child][i]
 
 def start_new_gen(temp, pop):
-    for i in range(pop_size):
-        pop[i] = temp[i]
-        temp[i] = 0
-        for j in range(genetic_length):
-            agent_pop[i][j] = temp_pop[i][j]
-            temp_pop[i][j] = 0
+    global order
+    if copy_count != pop_size:
+        for i in range(pop_size):
+            pop[i] = temp[i]
+            temp[i] = 0
+            for j in range(genetic_length):
+                agent_pop[i][j] = temp_pop[i][j]
+                temp_pop[i][j] = 0
+    else:
+        for i in range(pop_size-copy_count, pop_size):
+            pop[order[i]] = temp[i-pop_size+copy_count]
+            temp[i-pop_size+copy_count] = 0
+            for j in range(genetic_length):
+                agent_pop[order[i]][j] = temp_pop[i-pop_size+copy_count][j]
+                temp_pop[i-pop_size+copy_count][j] = 0
 
 #port definitions
 cell_params_spike_injector = {
@@ -736,12 +748,12 @@ for count in range(number_of_children):
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             writer.writerow(pop_fitness)
     else:
-        temp_fitness[count%pop_size] = child_fitness
-        copy_child(count%pop_size, True)
+        temp_fitness[count%copy_count] = child_fitness
+        copy_child(count%copy_count, True)
         with open('Child fitness record.csv', 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
-            writer.writerow([count%pop_size, child_fitness])
-        if count%pop_size == pop_size-1:
+            writer.writerow([count%copy_count, child_fitness, temp_pop[count%copy_count]])
+        if count%copy_count == copy_count-1:
             start_new_gen(temp_fitness, pop_fitness)
             order = bubble_sort_fitness(pop_fitness)
             worst_fitness = pop_fitness[order[pop_size-1]]
