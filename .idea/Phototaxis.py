@@ -15,17 +15,18 @@ import pandas
 seed_population = False
 copy_population = False
 only_improve = False
-total_runtime = 2000
+total_runtime = 200
 time_slice = 100
-pop_size = 20
-copy_count = 10
+pop_size = 25
+reset_count = 10
+no_move_punishment = 2.
 agent_neurons = 6
 neuron_pop_size = 1
 ex_in_ratio = 4#:1
 visual_discrete = 2
 visual_field = (2./6.)*np.pi
 max_poisson = 300
-mutation_rate = 0.02
+mutation_rate = 0.01
 shift_ratio = 0.2
 number_of_children = 200
 fitness_offset = 150
@@ -492,11 +493,15 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
         sensor_poisson = poisson_rate(agent, light_distance, light_theta)
         for j in range(visual_discrete):
             visual_input[j].set(rate=sensor_poisson[j])
-        print "did a run {}/{}, time now at {}/{} and fitness = {}".format(counter, number_of_runs, i+time_slice, total_runtime, fitness)
+        print "did a run {}/{}, time now at {}/{} and fitness = {}/{}".format\
+            (counter, number_of_runs, i+time_slice, total_runtime, fitness, light_distance*((i/time_slice)+1))
         if print_move == True:
             with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
                 writer.writerow([agent_pop[agent][genetic_length-3],agent_pop[agent][genetic_length-2],agent_pop[agent][genetic_length-1]])
+    if fitness == light_distance*(total_runtime/time_slice):
+        fitness *= no_move_punishment
+        print "agent failed to move so was punished"
     # if print_move == True:
     #     spikes = []
     #     v = []
@@ -582,30 +587,31 @@ def mate_agents(mum, dad):
     agent_pop[child][i] = np.random.uniform(angle, angle_range)
     #return child
 
-def copy_child(location, temp):
-    if temp == False:
+def copy_child(location, to_temp):
+    if to_temp == False:
         for i in range(genetic_length):
             agent_pop[location][i] = agent_pop[child][i]
     else:
         for i in range(genetic_length):
             temp_pop[location][i] = agent_pop[child][i]
 
-def start_new_gen(temp, pop):
-    global order
-    if copy_count != pop_size:
+def start_new_gen(temp_fit, pop):
+    if reset_count == pop_size:
         for i in range(pop_size):
-            pop[i] = temp[i]
-            temp[i] = 0
+            pop[i] = temp_fit[i]
+            temp_fit[i] = 0
             for j in range(genetic_length):
                 agent_pop[i][j] = temp_pop[i][j]
                 temp_pop[i][j] = 0
     else:
-        for i in range(pop_size-copy_count, pop_size):
-            pop[order[i]] = temp[i-pop_size+copy_count]
-            temp[i-pop_size+copy_count] = 0
+        for i in range(pop_size-reset_count, pop_size):
+            print "before", i
+            pop[order[i]] = temp_fit[i-pop_size+reset_count]
+            print "after ", i
+            temp_fit[i-pop_size+reset_count] = 0
             for j in range(genetic_length):
-                agent_pop[order[i]][j] = temp_pop[i-pop_size+copy_count][j]
-                temp_pop[i-pop_size+copy_count][j] = 0
+                agent_pop[order[i]][j] = temp_pop[i-pop_size+reset_count][j]
+                temp_pop[i-pop_size+reset_count][j] = 0
 
 #port definitions
 cell_params_spike_injector = {
@@ -748,12 +754,12 @@ for count in range(number_of_children):
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
             writer.writerow(pop_fitness)
     else:
-        temp_fitness[count%copy_count] = child_fitness
-        copy_child(count%copy_count, True)
+        temp_fitness[count%reset_count] = child_fitness
+        copy_child(count%reset_count, True)
         with open('Child fitness record.csv', 'a') as file:
             writer = csv.writer(file, delimiter=',', lineterminator='\n')
-            writer.writerow([count%copy_count, child_fitness, temp_pop[count%copy_count]])
-        if count%copy_count == copy_count-1:
+            writer.writerow([((port_offset-1)/number_of_runs)-1, child_fitness, count%reset_count, temp_pop[count%reset_count]])
+        if count%reset_count == reset_count-1:
             start_new_gen(temp_fitness, pop_fitness)
             order = bubble_sort_fitness(pop_fitness)
             worst_fitness = pop_fitness[order[pop_size-1]]
