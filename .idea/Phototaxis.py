@@ -12,12 +12,12 @@ import csv
 import pandas
 
 #run setup
-seed_population = False
+seed_population = True
 copy_population = False
 only_improve = False
-total_runtime = 200
+total_runtime = 2000
 time_slice = 100
-pop_size = 25
+pop_size = 20
 reset_count = 10
 no_move_punishment = 2.
 agent_neurons = 6
@@ -26,7 +26,7 @@ ex_in_ratio = 4#:1
 visual_discrete = 2
 visual_field = (2./6.)*np.pi
 max_poisson = 300
-mutation_rate = 0.01
+mutation_rate = 0.02
 shift_ratio = 0.2
 number_of_children = 200
 fitness_offset = 150
@@ -114,12 +114,12 @@ if seed_population == True:
                 i += 1
     else:
         print "seeding from the best individual"
-        with open('Seed population.csv') as from_file:
+        with open('Seed of l+r.csv') as from_file:
             csvFile = csv.reader(from_file)
             for row in csvFile:
                 temp = row
                 for j in range(genetic_length):
-                    agent_pop[0][j] = float(temp[j+1])
+                    agent_pop[0][j] = float(temp[j]) #+1]) #only needed if starting with fitness
                 break
             for i in range(pop_size-1):
                 print "mutating individuals"
@@ -418,12 +418,12 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
         if agent_pop[agent][inhibitory_loc + i] == -1:
             neuron_labels.append("Inhibitory{}-neuron{}-agent{}-port{}".format(inhibitory_count,i,agent,port_offset))
             neuron_pop.append(
-                p.Population(neuron_pop_size, p.IF_curr_exp(), label=neuron_labels[i]))
+                p.Population(neuron_pop_size, p.IF_cond_exp(), label=neuron_labels[i]))
             inhibitory_count += 1
         else:
             neuron_labels.append("Excitatory{}-neuron{}-agent{}-port{}".format(excitatory_count,i,agent,port_offset))
             neuron_pop.append(
-                p.Population(neuron_pop_size, p.IF_curr_exp(), label=neuron_labels[i]))
+                p.Population(neuron_pop_size, p.IF_cond_exp(), label=neuron_labels[i]))
             excitatory_count += 1
         # if print_move == True:
         #     neuron_pop[i].record(["spikes", "v"])
@@ -499,7 +499,8 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
             with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
                 writer.writerow([agent_pop[agent][genetic_length-3],agent_pop[agent][genetic_length-2],agent_pop[agent][genetic_length-1]])
-    if fitness == light_distance*(total_runtime/time_slice):
+    no_move_distance = light_distance*total_runtime/time_slice
+    if abs(fitness - no_move_distance) < 1e-10:
         fitness *= no_move_punishment
         print "agent failed to move so was punished"
     # if print_move == True:
