@@ -5,6 +5,8 @@ import pylab
 import numpy as np
 from threading import Condition
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import show, plot
+import matplotlib.animation as live
 from matplotlib import gridspec
 from pyNN.random import RandomDistribution as rand
 import spynnaker8.spynakker_plotting as splot
@@ -91,14 +93,28 @@ genetic_length = weights + delays + (inhibitory * agent_neurons) + set2zero + \
                  plasticity + plasticity_per_n + net_size + cell_params + status
 
 #intialise population
-seed_network = [[0 for i in range(genetic_length)]] #[pop][gen]
-with open('Seed of agent.csv') as from_file:
+seed_from = -27
+seed_network = [0 for i in range(genetic_length)] #[pop][gen]
+with open('Created network.csv') as from_file:
     csvFile = csv.reader(from_file)
     for row in csvFile:
         temp = row
-        for j in range(genetic_length):
-            agent[j] = float(temp[j])
-        break
+        if abs(float(temp[0]) - seed_from) < 1e-10:
+            for j in range(genetic_length):
+                seed_network[j] = float(temp[j+3])
+            break
+
+inhibitory_loc = 72
+set2loc = 78
+delay_loc = 36
+
+fig = plt.figure()
+tracking = fig.add_subplot(1,1,1)
+xs = []
+ys = []
+ld = 20
+lt = 3
+
 # print agent_pop[3][3]
 # print agent_pop[9][55]
 # print agent_pop[5][47]
@@ -165,7 +181,7 @@ def receive_spikes(label, time, neuron_ids):
             print "failed motor receive"
 
 def update_location(agent):
-    print "before = ", seed_netork[genetic_length-3], seed_netork[genetic_length-2], seed_netork[genetic_length-1]
+    print "before = ", seed_network[genetic_length-3], seed_network[genetic_length-2], seed_network[genetic_length-1]
     total_left = motor_spikes[0] #- motor_spikes[1]
     total_right = motor_spikes[2] #- motor_spikes[3]
     motor_average = (total_right + total_left) / 2.
@@ -179,25 +195,25 @@ def update_location(agent):
     print "left = {} <- {} + {}".format(total_left, motor_spikes[0], motor_spikes[1])
     print "right = {} <- {} + {}".format(total_right, motor_spikes[2], motor_spikes[3])
     #x - negative angle due to x y being opposite to trigonometry
-    print "dx = ", (distance_moved * np.sin(-seed_netork[genetic_length-1]))
+    print "dx = ", (distance_moved * np.sin(-seed_network[genetic_length-1]))
     print "average = ", (total_left + total_right) / 2.
     print "new distance calc = ", distance_moved
-    print np.sin(-seed_netork[genetic_length-1])
+    print np.sin(-seed_network[genetic_length-1])
     #y
-    print "dy = ", (distance_moved * np.cos(-seed_netork[genetic_length-1]))
-    print np.cos(-seed_netork[genetic_length-1])
+    print "dy = ", (distance_moved * np.cos(-seed_network[genetic_length-1]))
+    print np.cos(-seed_network[genetic_length-1])
     #angle
     print "change = ", (total_right - total_left) * 0.01
-    angle_before = seed_netork[genetic_length-1]
-    seed_netork[genetic_length-1] += (total_right - total_left) * 0.01
-    if seed_netork[genetic_length-1] > np.pi:
-        seed_netork[genetic_length - 1] -= np.pi * 2
-    if seed_netork[genetic_length-1] < -np.pi:
-        seed_netork[genetic_length - 1] += np.pi * 2
+    angle_before = seed_network[genetic_length-1]
+    seed_network[genetic_length-1] += (total_right - total_left) * 0.01
+    if seed_network[genetic_length-1] > np.pi:
+        seed_network[genetic_length - 1] -= np.pi * 2
+    if seed_network[genetic_length-1] < -np.pi:
+        seed_network[genetic_length - 1] += np.pi * 2
     #possbily change to move between half the angle of start and finish
-    seed_netork[genetic_length-3] += distance_moved * np.sin(-(angle_before+seed_netork[genetic_length-1])/2)
-    seed_netork[genetic_length-2] += distance_moved * np.cos(-(angle_before+seed_netork[genetic_length-1])/2)
-    print "after = ", seed_netork[genetic_length-3], seed_netork[genetic_length-2], seed_netork[genetic_length-1]
+    seed_network[genetic_length-3] += distance_moved * np.sin(-(angle_before+seed_network[genetic_length-1])/2)
+    seed_network[genetic_length-2] += distance_moved * np.cos(-(angle_before+seed_network[genetic_length-1])/2)
+    print "after = ", seed_network[genetic_length-3], seed_network[genetic_length-2], seed_network[genetic_length-1]
     for i in range(4):
         motor_spikes[i] = 0
 
@@ -213,9 +229,9 @@ def my_tan(dx, dy):
     return theta
 
 def poisson_rate(agent, light_dist, light_angle):
-    agent_x = seed_netork[genetic_length-3]
-    agent_y = seed_netork[genetic_length-2]
-    agent_angle = seed_netork[genetic_length-1]
+    agent_x = seed_network[genetic_length-3]
+    agent_y = seed_network[genetic_length-2]
+    agent_angle = seed_network[genetic_length-1]
     #theta between pi and -pi relative to north anticlockwise positive
     light_x = light_dist * np.sin(-light_angle)
     light_y = light_dist * np.cos(-light_angle)
@@ -261,22 +277,32 @@ def poisson_rate(agent, light_dist, light_angle):
     return sensor_poisson
 
 def calc_instant_fitness(agent, light_dist, light_angle):
-    agent_x = seed_netork[genetic_length-3]
-    agent_y = seed_netork[genetic_length-2]
+    agent_x = seed_network[genetic_length-3]
+    agent_y = seed_network[genetic_length-2]
     light_x = light_dist * np.sin(-light_angle)
     light_y = light_dist * np.cos(-light_angle)
     fitness = np.sqrt(np.power(agent_x-light_x,2)+np.power(agent_y-light_y,2))
     return fitness
 
 def reset_agent(agent):
-    seed_netork[genetic_length-1] = 0
-    seed_netork[genetic_length-2] = 0
-    seed_netork[genetic_length-3] = 0
+    seed_network[genetic_length-1] = 0
+    seed_network[genetic_length-2] = 0
+    seed_network[genetic_length-3] = 0
+
+def animate(i):
+    global lt, ld, xs, ys
+    tracking.clear()
+    tracking.plot(ld * np.sin(-lt), ld * np.cos(-lt), 'ro')
+    tracking.plot(xs, ys, '-')
+    tracking.set_xlim(-200, 200)
+    tracking.set_ylim(0, 200)
+    #plt.show(block=False)
 
 def agent_fitness(agent, light_distance, light_theta, print_move):
     global port_offset
     global number_of_runs
     global counter
+    global ld, lt, xs, ys
     print "\n\nStarting agent - {}\n\n".format(agent)
     p.setup(timestep=1.0, min_delay=delay_min, max_delay=delay_max)
     p.set_number_of_neurons_per_core(p.IF_curr_exp, 20)
@@ -288,8 +314,9 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
             del neuron_labels[0]
     inhibitory_count = 0
     excitatory_count = 0
+    #initialise neural populations
     for i in range(agent_neurons):
-        if seed_netork[inhibitory_loc + i] == -1:
+        if seed_network[inhibitory_loc + i] == -1:
             neuron_labels.append("Inhibitory{}-neuron{}-agent{}-port{}".format(inhibitory_count,i,agent,port_offset))
             neuron_pop.append(
                 p.Population(neuron_pop_size, p.IF_cond_exp(), label=neuron_labels[i]))
@@ -307,20 +334,20 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     for i in range(agent_neurons):
         for j in range(agent_neurons):
             # if theres a connection connect
-            if seed_netork[set2loc + (i * agent_neurons) + j] != 0:
+            if seed_network[set2loc + (i * agent_neurons) + j] != 0:
                 # if connection is inhibitory set as such
-                if seed_netork[inhibitory_loc + i] == -1:
+                if seed_network[inhibitory_loc + i] == -1:
                     synapse = p.StaticSynapse(
-                        weight=-seed_netork[(i * agent_neurons) + j],
-                        delay=seed_netork[delay_loc + ((i * agent_neurons) + j)])
+                        weight=-seed_network[(i * agent_neurons) + j],
+                        delay=seed_network[delay_loc + ((i * agent_neurons) + j)])
                     projection_list.append(p.Projection(
                         neuron_pop[i], neuron_pop[j], p.AllToAllConnector(),
                         synapse, receptor_type="inhibitory"))
                 # set as excitatory
                 else:
                     synapse = p.StaticSynapse(
-                        weight=seed_netork[(i * agent_neurons) + j],
-                        delay=seed_netork[delay_loc + ((i * agent_neurons) + j)])
+                        weight=seed_network[(i * agent_neurons) + j],
+                        delay=seed_network[delay_loc + ((i * agent_neurons) + j)])
                     projection_list.append(p.Projection(
                         neuron_pop[i], neuron_pop[j], p.AllToAllConnector(),
                         synapse, receptor_type="excitatory"))
@@ -360,18 +387,36 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     # spikes = list()
     # v = list()
     print"\nstarting run\n"
+    xs.append(seed_network[genetic_length-3])
+    #location_x.append(47)
+    ys.append(seed_network[genetic_length-2])
+    #location_y.append(150)
+    ld = light_distance
+    lt = light_theta
+    #live_graph = live.FuncAnimation(fig, animate, interval=2000, blit=True)
+    #plt.show(block=False)
+
+    #plt.show()
     for i in range(0,total_runtime, time_slice):
         p.run(time_slice)
         update_location(agent)
+        xs.append(seed_network[genetic_length-3])
+        ys.append(seed_network[genetic_length-2])
+        tracking.clear()
+        tracking.plot(ld * np.sin(-lt), ld * np.cos(-lt), 'ro')
+        tracking.plot(xs, ys, '-')
+        # tracking.set_xlim(-200, 200)
+        # tracking.set_ylim(0, 200)
+        plt.show(block=False)
         sensor_poisson = poisson_rate(agent, light_distance, light_theta)
         for j in range(visual_discrete):
             visual_input[j].set(rate=sensor_poisson[j])
         print "did a run {}/{}, time now at {}/{} and fitness = {}/{}".format\
             (counter, number_of_runs, i+time_slice, total_runtime, fitness, light_distance*((i/time_slice)+1))
         if print_move == True:
-            with open('movement of seed.csv', 'a') as file:
+            with open('movement of {}.csv'.format(seed_from), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
-                writer.writerow([seed_netork[genetic_length-3],seed_netork[genetic_length-2],seed_netork[genetic_length-1]])
+                writer.writerow([seed_network[genetic_length-3],seed_network[genetic_length-2],seed_network[genetic_length-1]])
     # if print_move == True:
     #     spikes = []
     #     v = []
@@ -380,6 +425,8 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     #         v.append(neuron_pop[j].get_data("v"))
     live_connection.close()
     live_connection._handle_possible_rerun_state()
+    port_offset += 1
+    reset_agent(0)
     p.end()
     return fitness
 
@@ -393,10 +440,21 @@ cell_params_spike_injector_with_key = {
     'virtual_key': 0x70000,
 }
 
-with open('movement of seed.csv', 'w') as file:
+with open('movement of {}.csv'.format(seed_from), 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
     writer.writerow([0,0,0])
-
-agent_fitness(0,200,-np.pi/4)
+for i in range(5):
+    with open('movement of {}.csv'.format(seed_from), 'a') as file:
+        writer = csv.writer(file, delimiter=',', lineterminator='\n')
+        writer.writerow([0, 0, 0])
+    agent_fitness(0,200,np.pi/4, True)
+with open('movement of {}.csv'.format(seed_from), 'a') as file:
+    writer = csv.writer(file, delimiter=',', lineterminator='\n')
+    writer.writerow([-141, 141])
+for i in range(5):
+    with open('movement of {}.csv'.format(seed_from), 'a') as file:
+        writer = csv.writer(file, delimiter=',', lineterminator='\n')
+        writer.writerow([0, 0, 0])
+    agent_fitness(0,200,-np.pi/4, True)
 
 print "\n shit finished yo!!"
