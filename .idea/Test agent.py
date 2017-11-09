@@ -17,7 +17,7 @@ import pandas
 seed_population = True
 copy_population = False
 only_improve = False
-total_runtime = 2000
+total_runtime = 40000
 time_slice = 100
 pop_size = 20
 reset_count = 10
@@ -27,7 +27,7 @@ neuron_pop_size = 1
 ex_in_ratio = 4#:1
 visual_discrete = 2
 visual_field = (2./6.)*np.pi
-max_poisson = 300
+max_poisson = 50
 mutation_rate = 0.02
 shift_ratio = 0.2
 number_of_children = 200
@@ -94,6 +94,8 @@ genetic_length = weights + delays + (inhibitory * agent_neurons) + set2zero + \
 
 #intialise population
 seed_from = -27
+weight_scale = 0.002
+delay_scale = 5
 seed_network = [0 for i in range(genetic_length)] #[pop][gen]
 with open('Created network.csv') as from_file:
     csvFile = csv.reader(from_file)
@@ -102,6 +104,10 @@ with open('Created network.csv') as from_file:
         if abs(float(temp[0]) - seed_from) < 1e-10:
             for j in range(genetic_length):
                 seed_network[j] = float(temp[j+3])
+                if j < weights:
+                    seed_network[j] *= weight_scale
+                elif j < delay_loc + delays:
+                    seed_network[j] *= delay_scale
             break
 
 inhibitory_loc = 72
@@ -203,9 +209,9 @@ def update_location(agent):
     print "dy = ", (distance_moved * np.cos(-seed_network[genetic_length-1]))
     print np.cos(-seed_network[genetic_length-1])
     #angle
-    print "change = ", (total_right - total_left) * 0.01
+    print "change = ", (total_right - total_left) * 0.05
     angle_before = seed_network[genetic_length-1]
-    seed_network[genetic_length-1] += (total_right - total_left) * 0.01
+    seed_network[genetic_length-1] += (total_right - total_left) * 0.05
     if seed_network[genetic_length-1] > np.pi:
         seed_network[genetic_length - 1] -= np.pi * 2
     if seed_network[genetic_length-1] < -np.pi:
@@ -397,8 +403,11 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     #plt.show(block=False)
 
     #plt.show()
+    temp_motors = [0 for i in range(4)]
     for i in range(0,total_runtime, time_slice):
         p.run(time_slice)
+        for j in range(4):
+            temp_motors[j] = motor_spikes[j]
         update_location(agent)
         xs.append(seed_network[genetic_length-3])
         ys.append(seed_network[genetic_length-2])
@@ -414,9 +423,10 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
         print "did a run {}/{}, time now at {}/{} and fitness = {}/{}".format\
             (counter, number_of_runs, i+time_slice, total_runtime, fitness, light_distance*((i/time_slice)+1))
         if print_move == True:
-            with open('movement of {}.csv'.format(seed_from), 'a') as file:
+            with open('movement of {}.csv'.format(weight_scale*(counter+1)), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
-                writer.writerow([seed_network[genetic_length-3],seed_network[genetic_length-2],seed_network[genetic_length-1]])
+                writer.writerow([seed_network[genetic_length-3],seed_network[genetic_length-2],seed_network[genetic_length-1],
+                                temp_motors[0], temp_motors[1], temp_motors[2], temp_motors[3]])
     # if print_move == True:
     #     spikes = []
     #     v = []
@@ -440,21 +450,32 @@ cell_params_spike_injector_with_key = {
     'virtual_key': 0x70000,
 }
 
-with open('movement of {}.csv'.format(seed_from), 'w') as file:
-    writer = csv.writer(file, delimiter=',', lineterminator='\n')
-    writer.writerow([0,0,0])
-for i in range(5):
-    with open('movement of {}.csv'.format(seed_from), 'a') as file:
+starting_point = 5
+for j in range(starting_point):
+    for i in range(36):
+        if seed_network[i] != 0:
+            seed_network[i] += weight_scale
+for count in range(starting_point,13):
+    #global counter
+    counter = count
+    with open('movement of {}.csv'.format(weight_scale*(counter+1)), 'w') as file:
         writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        writer.writerow([0, 0, 0])
-    agent_fitness(0,200,np.pi/4, True)
-with open('movement of {}.csv'.format(seed_from), 'a') as file:
-    writer = csv.writer(file, delimiter=',', lineterminator='\n')
-    writer.writerow([-141, 141])
-for i in range(5):
-    with open('movement of {}.csv'.format(seed_from), 'a') as file:
+        writer.writerow([-141, 141])
+    for i in range(3):
+        with open('movement of {}.csv'.format(weight_scale*(counter+1)), 'a') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
+            writer.writerow([0, 0, 0])
+        agent_fitness(0,200,np.pi/4, True)
+    with open('movement of {}.csv'.format(weight_scale*(counter+1)), 'a') as file:
         writer = csv.writer(file, delimiter=',', lineterminator='\n')
-        writer.writerow([0, 0, 0])
-    agent_fitness(0,200,-np.pi/4, True)
+        writer.writerow([141, 141])
+    for i in range(2):
+        with open('movement of {}.csv'.format(weight_scale*(counter+1)), 'a') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
+            writer.writerow([0, 0, 0])
+        agent_fitness(0,200,-np.pi/4, True)
+    for i in range(36):
+        if seed_network[i] != 0:
+            seed_network[i] += weight_scale
 
 print "\n shit finished yo!!"
