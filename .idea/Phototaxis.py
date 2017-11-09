@@ -12,11 +12,11 @@ import csv
 import pandas
 
 #run setup
-seed_population = True
+seed_population = False
 copy_population = False
 only_improve = False
-total_runtime = 2000
-time_slice = 100
+total_runtime = 4000
+time_slice = 200
 pop_size = 20
 reset_count = 10
 no_move_punishment = 2.
@@ -25,10 +25,10 @@ neuron_pop_size = 1
 ex_in_ratio = 4#:1
 visual_discrete = 2
 visual_field = (2./6.)*np.pi
-max_poisson = 300
+max_poisson = 50
 mutation_rate = 0.02
 shift_ratio = 0.2
-number_of_children = 200
+number_of_children = 100
 fitness_offset = 150
 #maybe gentically code this
 visual_weight = 4
@@ -39,14 +39,14 @@ visual_delay = 1
 #weight per connection - n*n
 weights = agent_neurons * agent_neurons
 weight_min = 0
-weight_max = 5
+weight_max = 0.04
 weight_range = weight_max - weight_min
 weight_cut = 0
 #delays per neruon connection - n*n
 delays = agent_neurons * agent_neurons
 delay_loc = weights
 delay_min = 1
-delay_max = 144
+delay_max = 40
 delay_range = delay_max - delay_min
 #inhibitory on off
 inhibitory = 1
@@ -313,9 +313,9 @@ def update_location(agent):
     print "dy = ", (distance_moved * np.cos(-agent_pop[agent][genetic_length-1]))
     print np.cos(-agent_pop[agent][genetic_length-1])
     #angle
-    print "change = ", (total_right - total_left) * 0.01
+    print "change = ", (total_right - total_left) * 0.05
     angle_before = agent_pop[agent][genetic_length-1]
-    agent_pop[agent][genetic_length-1] += (total_right - total_left) * 0.01
+    agent_pop[agent][genetic_length-1] += (total_right - total_left) * 0.05
     if agent_pop[agent][genetic_length-1] > np.pi:
         agent_pop[agent][genetic_length - 1] -= np.pi * 2
     if agent_pop[agent][genetic_length-1] < -np.pi:
@@ -486,8 +486,11 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     # spikes = list()
     # v = list()
     print"\nstarting run\n"
+    temp_motors = [0 for i in range(4)]
     for i in range(0,total_runtime, time_slice):
         p.run(time_slice)
+        for j in range(4):
+            temp_motors[j] = motor_spikes[j]
         update_location(agent)
         fitness += calc_instant_fitness(agent, light_distance, light_theta)
         sensor_poisson = poisson_rate(agent, light_distance, light_theta)
@@ -498,7 +501,8 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
         if print_move == True:
             with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'a') as file:
                 writer = csv.writer(file, delimiter=',', lineterminator='\n')
-                writer.writerow([agent_pop[agent][genetic_length-3],agent_pop[agent][genetic_length-2],agent_pop[agent][genetic_length-1]])
+                writer.writerow([agent_pop[agent][genetic_length-3],agent_pop[agent][genetic_length-2],agent_pop[agent][genetic_length-1],
+                                temp_motors[0], temp_motors[1], temp_motors[2], temp_motors[3]])
     no_move_distance = light_distance*total_runtime/time_slice
     if abs(fitness - no_move_distance) < 1e-10:
         fitness *= no_move_punishment
@@ -637,7 +641,7 @@ else:
     #         writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
     #         writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
     #                          agent_pop[agent][genetic_length - 1]])
-        pop_fitness[agent] = agent_fitness(agent, 200, -np.pi/4, False)
+        pop_fitness[agent] = agent_fitness(agent, 200, -np.pi/4, True)
         total_fitness += pop_fitness[agent]
         print"\n\n Terminated agent - {} \n\n".format(agent)
     #total_v = list()
