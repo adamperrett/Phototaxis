@@ -15,11 +15,11 @@ import pandas
 seed_population = False
 copy_population = False
 only_improve = False
-total_runtime = 4000
+total_runtime = 20000
 time_slice = 200
-pop_size = 20
-reset_count = 10
-no_move_punishment = 2.
+pop_size = 10
+reset_count = 5
+no_move_punishment = 3.
 agent_neurons = 6
 neuron_pop_size = 1
 ex_in_ratio = 4#:1
@@ -28,7 +28,7 @@ visual_field = (2./6.)*np.pi
 max_poisson = 50
 mutation_rate = 0.02
 shift_ratio = 0.2
-number_of_children = 100
+number_of_children = 80
 fitness_offset = 150
 #maybe gentically code this
 visual_weight = 4
@@ -36,10 +36,11 @@ visual_delay = 1
 
 #params per neurons - number of necessary genetic bits
 
+
 #weight per connection - n*n
 weights = agent_neurons * agent_neurons
 weight_min = 0
-weight_max = 0.04
+weight_max = 0.03
 weight_range = weight_max - weight_min
 weight_cut = 0
 #delays per neruon connection - n*n
@@ -108,7 +109,7 @@ if seed_population == True:
             i = 0
             for row in csvFile:
                 temp = row
-                pop_fitness[i] = temp[0]
+                pop_fitness[i] = float(temp[0])
                 for j in range(genetic_length):
                     agent_pop[i][j] = float(temp[j+1])
                 i += 1
@@ -409,7 +410,7 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     # setup of different neuronal populations
     #neuron_pop = list();
     neuron_pop = []
-    if agent != 0:
+    if port_offset != 1:
         for i in range(agent_neurons):
             del neuron_labels[0]
     inhibitory_count = 0
@@ -631,16 +632,19 @@ cell_params_spike_injector_with_key = {
 }
 if seed_population == True and copy_population == True:
     print "No need to test all of the population again"
+    total_fitness = 0
+    for i in range(pop_size):
+        total_fitness += pop_fitness[i]
 else:
     pop_fitness = [0 for i in range(pop_size)]
     total_fitness = 0
     #calculate fitnesses for all agents in population
     for agent in range(pop_size):
-    #     with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
-    #         writer = csv.writer(file, delimiter=',', lineterminator='\n')
-    #         writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
-    #         writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
-    #                          agent_pop[agent][genetic_length - 1]])
+        with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
+            writer = csv.writer(file, delimiter=',', lineterminator='\n')
+            writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
+            writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
+                             agent_pop[agent][genetic_length - 1]])
         pop_fitness[agent] = agent_fitness(agent, 200, -np.pi/4, True)
         total_fitness += pop_fitness[agent]
         print"\n\n Terminated agent - {} \n\n".format(agent)
@@ -710,7 +714,7 @@ else:
 #sort fitness values
 order = bubble_sort_fitness(pop_fitness)
 worst_fitness = pop_fitness[order[pop_size-1]]
-total_fitness = fitness_offset + (worst_fitness*pop_size) - total_fitness
+total_fitness = ((fitness_offset + worst_fitness)*pop_size) - total_fitness
 for count in range(number_of_children):
     i = np.random.uniform(0,total_fitness)
     j = 0
@@ -736,8 +740,8 @@ for count in range(number_of_children):
     with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
         writer = csv.writer(file, delimiter=',', lineterminator='\n')
         writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
-        writer.writerow([agent_pop[agent][genetic_length - 3], agent_pop[agent][genetic_length - 2],
-                         agent_pop[agent][genetic_length - 1]])
+        writer.writerow([agent_pop[child][genetic_length - 3], agent_pop[child][genetic_length - 2],
+                         agent_pop[child][genetic_length - 1]])
     child_fitness = agent_fitness(child, 200, -np.pi/4, True)
     print "generated a child ",
     if only_improve == True:
@@ -782,11 +786,16 @@ with open('population_genes.csv', 'w') as file:
 
 with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
     writer = csv.writer(file, delimiter=',', lineterminator='\n')
-    writer.writerow([200*np.sin(-np.pi / 4), 200*np.cos(-np.pi / 4)])
+    writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
     writer.writerow([agent_pop[order[0]][genetic_length - 3], agent_pop[order[0]][genetic_length - 2],
                      agent_pop[order[0]][genetic_length - 1]])
-
 best_fitness = agent_fitness(order[0], 200, -np.pi/4, True)
+
+with open('movement {}.csv'.format((port_offset-counter)/number_of_runs), 'w') as file:
+    writer = csv.writer(file, delimiter=',', lineterminator='\n')
+    writer.writerow([200*np.sin(np.pi / 4), 200*np.cos(np.pi / 4)])
+    writer.writerow([agent_pop[order[0]][genetic_length - 3], agent_pop[order[0]][genetic_length - 2],
+                     agent_pop[order[0]][genetic_length - 1]])
 best_fitness2 = agent_fitness(order[0], 200, -np.pi/4, True)
 
 print "\n shit finished yo!!"
