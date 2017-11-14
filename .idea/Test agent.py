@@ -121,15 +121,6 @@ ys = []
 ld = 20
 lt = 3
 
-# print agent_pop[3][3]
-# print agent_pop[9][55]
-# print agent_pop[5][47]
-
-# #p.setup(timestep=1.0, min_delay=1.0, max_delay=144.0)
-# p.setup(timestep=1.0, min_delay=delay_min, max_delay=delay_max)
-# #nNeurons = 20  # number of neurons in each population
-# p.set_number_of_neurons_per_core(p.IF_curr_exp, 20)# / 2)
-
 #cell configuration
 cell_params_lif = {'cm': 0.25,
                    'i_offset': 0.0,
@@ -143,7 +134,6 @@ cell_params_lif = {'cm': 0.25,
                    'e_rev_E': 0.,
                    'e_rev_I': -80.
                    }
-
 
 run_condition = Condition()
 running = True

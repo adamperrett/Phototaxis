@@ -486,6 +486,7 @@ def agent_fitness(agent, light_distance, light_theta, print_move):
     fitness = 0
     # spikes = list()
     # v = list()
+
     print"\nstarting run\n"
     temp_motors = [0 for i in range(4)]
     for i in range(0,total_runtime, time_slice):
