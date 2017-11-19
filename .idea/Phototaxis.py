@@ -36,7 +36,6 @@ visual_delay = 1
 
 #params per neurons - number of necessary genetic bits
 
-
 #weight per connection - n*n
 weights = agent_neurons * agent_neurons
 weight_min = 0
